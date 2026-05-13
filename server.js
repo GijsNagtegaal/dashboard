@@ -128,7 +128,7 @@ app.post('/api/spotify/control', async (req, res) => {
 
 // ─── VIEW ROUTES ─────────────────────────────────────────────────────────────
 
-app.get('/dashboard', async (req, res) => {
+app.get('/', async (req, res) => {
     try {
         // Run all service calls in parallel for speed
         const [spotify, shopify, mirakl, weather, github] = await Promise.all([
