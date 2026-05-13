@@ -681,6 +681,21 @@
                     </div>
                 </div>
             {% endif %}
+
+<div class="printer-card">
+    <h3>Bambu Lab P1S/X1C</h3>
+    <div class="status">Status: <strong>{{ bambu.state }}</strong></div>
+    
+    {% if bambu.status == 'online' %}
+        <div class="progress-container" style="background: #eee; height: 10px; border-radius: 5px;">
+            <div class="progress-bar" style="width: {{ bambu.percent }}%; background: #007bff; height: 100%;"></div>
+        </div>
+        <p>{{ bambu.percent }}% Complete</p>
+        <p>Nozzle: {{ bambu.temp_nozzle }}°C | Bed: {{ bambu.temp_bed }}°C</p>
+    {% else %}
+        <p class="offline-text">Printer is currently offline.</p>
+    {% endif %}
+</div>
         </div>
 
         <div class="footer">
