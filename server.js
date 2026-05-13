@@ -1,3 +1,5 @@
+import 'dotenv/config';
+import axios from 'axios'; // Added missing import
 import express from 'express';
 import { Liquid } from 'liquidjs';
 import { fileURLToPath } from 'url';
@@ -5,18 +7,12 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import methodOverride from 'method-override';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-const API_BASE = 'https://api.gijsnagtegaal.nl/items';
-const ASSET_BASE = 'https://api.gijsnagtegaal.nl/assets';
-const PLACEHOLDER_IMAGE = '/assets/images/placeholder.webp';
-const DEFAULT_USER_ID = 1;
-
-// ─── APP SETUP ────────────────────────────────────────────────────────────────
-
-const app = express();
+// ─── SETUP ──────────────────────────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const app = express();
+const engine = new Liquid();
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
@@ -25,433 +21,156 @@ app.use(express.json());
 app.use(methodOverride('_method'));
 app.use('/gsap', express.static(path.join(__dirname, 'node_modules/gsap/dist/')));
 
-const engine = new Liquid();
 app.engine('liquid', engine.express());
 app.set('views', './views');
 app.set('view engine', 'liquid');
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// ─── SERVICES ────────────────────────────────────────────────────────────────
+import spotifyService from './services/spotify.js';
+import shopifyService from './services/shopify.js';
+import miraklService from './services/mirakl.js';
+import weatherService from './services/weather.js';
+import githubService from './services/github.js';
 
-const getActiveUserId = (req) =>
-    req.cookies.userId ? parseInt(req.cookies.userId, 10) : DEFAULT_USER_ID;
+// ─── CONSTANTS & CONFIG ──────────────────────────────────────────────────────
+const API_BASE = 'https://api.gijsnagtegaal.nl/items';
+const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
-const fetchData = async (endpoint) => {
+// Spotify State
+let accessToken = null;
+let tokenExpiry = null;
+
+// ─── SPOTIFY AUTH HELPERS ────────────────────────────────────────────────────
+
+const refreshAccessToken = async () => {
     try {
-        const response = await fetch(`${API_BASE}/${endpoint}`);
-        const result = await response.json();
-        return result.data;
-    } catch (e) {
-        console.error(`Fetch error for ${endpoint}:`, e);
+        if (!process.env.SPOTIFY_REFRESH_TOKEN) {
+            throw new Error("Missing SPOTIFY_REFRESH_TOKEN in .env");
+        }
+
+        const authHeader = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+        const response = await axios.post('https://accounts.spotify.com/api/token', 
+            new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: process.env.SPOTIFY_REFRESH_TOKEN,
+            }), 
+            {
+                headers: {
+                    'Authorization': `Basic ${authHeader}`,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+            }
+        );
+
+        accessToken = response.data.access_token;
+        // Set expiry with a 60-second safety buffer
+        tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000;
+        console.log('✅ Spotify Token Refreshed');
+        return accessToken;
+    } catch (error) {
+        console.error('❌ Spotify token refresh error:', error.response?.data || error.message);
         return null;
     }
 };
 
-const assetUrl = (asset) => {
-    if (!asset) return PLACEHOLDER_IMAGE;
-
-    const id = typeof asset === 'object' ? (asset.id || asset.memoji) : asset;
-
-    return (id && typeof id === 'string') 
-        ? `${ASSET_BASE}/${id}` 
-        : PLACEHOLDER_IMAGE;
+const ensureValidToken = async () => {
+    if (!accessToken || Date.now() >= tokenExpiry) {
+        return await refreshAccessToken();
+    }
+    return accessToken;
 };
 
-const resolveZoneId = (zoneEntry) =>
-    typeof zoneEntry === 'object' ? zoneEntry.frankendael_zones_id : zoneEntry;
-
-const getPlantIdsFromZone = (zone) => {
-    if (!zone.plants?.length) return [];
-    return zone.plants
-        .map(link => typeof link === 'object' ? link.frankendael_plants_id : link)
-        .filter(Boolean);
-};
-
-const normalizePlant = (plant) => {
-    if (!plant) return null;
-    return {
-        ...plant,
-        in_bloom: assetUrl(plant.in_bloom),
-        not_in_bloom: assetUrl(plant.not_in_bloom),
-        title: plant.quest_title || 'Opdracht',
-        description: plant.quest_text,
-        type: plant.quest_type === 'labels' ? 'button' : 'image',
-        correct_answer: (plant.quest_options || []).find(o => o.correct)?.value,
-        options: (plant.quest_options || []).map(o => ({
-            text: o.label || o.value,
-            value: o.value,
-            image_url: assetUrl(o.image),
-        })),
-        xp: 25,
-    };
-};
-
-const getCollectedIds = async (userId) => {
-    const data = await fetchData(
-        `frankendael_users_plants?filter[frankendael_users_id]=${userId}&fields=frankendael_plants_id`
-    ) || [];
-    return new Set(
-        data.map(item => {
-            const ref = item.frankendael_plants_id;
-            return typeof ref === 'object' ? ref.id : ref;
-        })
-    );
-};
-
-const getCollectedPlants = async (userId) => {
-    const data = await fetchData(
-        `frankendael_users_plants?filter[frankendael_users_id][_eq]=${userId}&fields=*,frankendael_plants_id.*.*`
-    ) || [];
-    return data.map(item => item.frankendael_plants_id).filter(Boolean);
-};
-
-const attachMainZone = (plant, allZones) => {
-    const firstZoneEntry = plant.zones?.[0];
-    const zoneId = resolveZoneId(firstZoneEntry);
-    return {
-        ...normalizePlant(plant),
-        main_zone: allZones.find(z => z.id === zoneId) ?? null,
-    };
-};
-
-// ─── GLOBALE DATA MIDDLEWARE ──────────────────────────────────────────────────
-
-app.use(async (req, res, next) => {
-    // Prevent the middleware from running on static assets or specific libraries
-    if (req.path.includes('.') || req.path.startsWith('/gsap')) return next();
-    
-    const userId = getActiveUserId(req);
-
+const getActiveUserId = async () => {
     try {
-        const [userProfile, allZones, collectedIds] = await Promise.all([
-            fetchData(`frankendael_users/${userId}?fields=*,memoji.*`),
-            fetchData('frankendael_zones?fields=*.*'),
-            getCollectedIds(userId)
-        ]);
-
-        res.locals.userId = userId;
-        res.locals.user = userProfile || {};
-        res.locals.allZones = allZones || [];
-        res.locals.collectedIds = collectedIds || new Set();
-
-        // Handle the nested Memoji asset ID
-        // Directus often returns the junction object, we need the file ID inside it
-        const memojiAsset = userProfile?.memoji?.memoji || userProfile?.memoji;
-        res.locals.userMemoji = assetUrl(memojiAsset);
-
-        next();
+        const token = await ensureValidToken();
+        const response = await axios.get('https://api.spotify.com/v1/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        return response.data.id;
     } catch (error) {
-        console.error('Middleware Error:', error);
-        res.locals.userId = userId;
-        res.locals.userMemoji = PLACEHOLDER_IMAGE;
-        next();
+        console.error('Error fetching User ID:', error.message);
+        return null;
+    }
+};
+
+// ─── API ROUTES ──────────────────────────────────────────────────────────────
+
+app.post('/api/spotify/control', async (req, res) => {
+    const { action } = req.query;
+    try {
+        const token = await ensureValidToken();
+        if (!token) return res.status(401).json({ error: "Auth failed" });
+
+        let endpoint = '';
+        let method = 'POST';
+
+        switch(action) {
+            case 'play': endpoint = '/me/player/play'; method = 'PUT'; break;
+            case 'pause': endpoint = '/me/player/pause'; method = 'PUT'; break;
+            case 'next': endpoint = '/me/player/next'; method = 'POST'; break;
+            case 'previous': endpoint = '/me/player/previous'; method = 'POST'; break;
+            default: return res.status(400).json({ error: "Invalid action" });
+        }
+
+        await axios({
+            method: method,
+            url: `https://api.spotify.com/v1${endpoint}`,
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Spotify Control Error:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Check if Spotify is active on a device' });
     }
 });
 
-// ─── ROUTES ───────────────────────────────────────────────────────────────────
+// ─── VIEW ROUTES ─────────────────────────────────────────────────────────────
 
-// Home
-app.get('/', async (req, res) => {
+app.get('/dashboard', async (req, res) => {
     try {
-        const [allNews, collectedPlants] = await Promise.all([
-            fetchData('frankendael_news'),
-            getCollectedPlants(res.locals.userId),
+        // Run all service calls in parallel for speed
+        const [spotify, shopify, mirakl, weather, github] = await Promise.all([
+            spotifyService.getCurrentlyPlaying().catch(() => null),
+            shopifyService.getShopifyOrders().catch(() => null),
+            miraklService.getMiraklOrders().catch(() => null),
+            weatherService.getWeather().catch(() => null),
+            githubService.getGitHubStats().catch(() => null),
         ]);
+
+        const commerce = {
+            totalOrders: (shopify?.orderCount || 0) + (mirakl?.orderCount || 0),
+            totalValue: (shopify?.totalValue || 0) + (mirakl?.totalValue || 0),
+            currency: 'EUR',
+            shopify: shopify || { orderCount: 0, totalValue: 0 },
+            mirakl: mirakl || { orderCount: 0, totalValue: 0 },
+        };
 
         res.render('index.liquid', {
-            zones: res.locals.allZones,
-            plants: (collectedPlants || []).map(p => attachMainZone(p, res.locals.allZones)),
-            news: (allNews || []).map(n => ({ ...n, image: assetUrl(n.image) })),
-            zone_type: 'home',
-            current_path: req.path,
+            spotify,
+            commerce,
+            weather,
+            github,
+            now: new Date(),
         });
     } catch (error) {
-        res.status(500).send('Home error');
+        console.error('Dashboard Route Error:', error);
+        res.status(500).send('Error loading dashboard');
     }
 });
 
-// Veldverkenner map overview
-app.get('/veldverkenner', async (req, res) => {
+// Example Order Routes
+app.get('/orders/shopify', async (req, res) => {
     try {
-        const allPlants = await fetchData('frankendael_plants?fields=*.*') || [];
-        const statusMap = {};
-
-        const zonesWithQuest = res.locals.allZones.map(zone => {
-            const plantIdsInZone = getPlantIdsFromZone(zone);
-            const isComplete = plantIdsInZone.length > 0 && 
-                plantIdsInZone.every(id => res.locals.collectedIds.has(id));
-
-            statusMap[zone.slug] = isComplete;
-            const plantWithQuest = allPlants.find(p => plantIdsInZone.includes(p.id) && p.quest_title);
-            const normalized = normalizePlant(plantWithQuest);
-
-            return {
-                ...zone,
-                quest: normalized ? { ...normalized, plant: normalized } : null,
-                zoneCompleted: isComplete,
-            };
-        });
-
-        res.render('veldverkenner.liquid', {
-            zones: zonesWithQuest,
-            completedCount: zonesWithQuest.filter(z => z.zoneCompleted).length,
-            status: statusMap,
-            progress: res.locals.collectedIds.size,
-            totalZonesCount: zonesWithQuest.length,
-            zone_type: 'veldverkenner',
-            current_path: req.path,
-        });
-    } catch (error) {
-        res.status(500).send('Map error');
-    }
+        const shopify = await shopifyService.getShopifyOrders();
+        res.render('orders.liquid', { marketplace: 'Shopify', orders: shopify.orders || [] });
+    } catch (e) { res.status(500).send("Shopify error"); }
 });
 
-// Single zone view
-app.get('/veldverkenner/:zone_slug', async (req, res) => {
-    try {
-        const zoneData = await fetchData(`frankendael_zones?filter[slug][_eq]=${req.params.zone_slug}&fields=*.*`) || [];
-        const currentZone = zoneData[0];
-        if (!currentZone) return res.status(404).send('Zone niet gevonden');
-
-        const plantIds = getPlantIdsFromZone(currentZone);
-        const plantsInZone = plantIds.length
-            ? await fetchData(`frankendael_plants?filter[id][_in]=${plantIds.join(',')}&fields=*.*`)
-            : [];
-
-        const normalizedPlants = (plantsInZone || []).map(plant => {
-            const normalized = normalizePlant(plant);
-            const zoneId = resolveZoneId(plant.zones?.[0]);
-            return {
-                ...normalized,
-                collected: res.locals.collectedIds.has(plant.id),
-                quest: plant.quest_title ? normalized : null,
-                main_zone: res.locals.allZones.find(z => z.id === zoneId) ?? null,
-            };
-        });
-
-        const collectedCount = normalizedPlants.filter(p => p.collected).length;
-
-        res.render('zone.liquid', {
-            zone: currentZone,
-            zone_name: currentZone.name,
-            plants: normalizedPlants,
-            zone_slug: req.params.zone_slug,
-            zone_type: currentZone.type,
-            current_path: req.path,
-            stats: {
-                total: normalizedPlants.length,
-                collected: collectedCount,
-                percentage: normalizedPlants.length > 0 ? (collectedCount / normalizedPlants.length) * 100 : 0,
-            },
-        });
-    } catch (error) {
-        res.status(500).send('Zone error');
-    }
+// ─── SERVER START ────────────────────────────────────────────────────────────
+const PORT = 8000;
+app.listen(PORT, () => {
+    console.log(`Axios loaded: ${typeof axios.post === 'function'}`);
+    console.log(`🚀 Server started: http://localhost:${PORT}/dashboard`);
 });
-
-// Single plant quest
-app.get('/veldverkenner/:zone_slug/:item_slug', async (req, res) => {
-    try {
-        const [zoneData, plantData] = await Promise.all([
-            fetchData(`frankendael_zones?filter[slug][_eq]=${req.params.zone_slug}`),
-            fetchData(`frankendael_plants?filter[slug][_eq]=${req.params.item_slug}&fields=*.*`),
-        ]);
-        const plant = normalizePlant(plantData[0]);
-        res.render('opdracht.liquid', {
-            quest: plant,
-            plant,
-            zone: zoneData[0],
-            zone_slug: req.params.zone_slug,
-            state: req.query.step || 'intro',
-            user_id: res.locals.userId,
-            zone_type: zoneData[0].type,
-            current_path: req.path,
-        });
-    } catch (error) {
-        res.status(500).send('Quest error');
-    }
-});
-
-// Collection overview
-app.get('/collectie', async (req, res) => {
-    const collected = await getCollectedPlants(res.locals.userId);
-    res.render('collectie.liquid', {
-        plants: collected.map(p => attachMainZone(p, res.locals.allZones)),
-        zone_type: 'collectie',
-        current_path: req.path,
-    });
-});
-
-app.get('/collectie/in_bloom', async (request, response) => {
-    const userId = getActiveUserId(request);
-    const [collected, allZones] = await Promise.all([getCollectedPlants(userId), fetchData('frankendael_zones')]);
-    const filtered = collected.filter(p => p.zones && p.zones.length > 0).map(plant => {
-        const zoneId = typeof plant.zones[0] === 'object' ? plant.zones[0].frankendael_zones_id : plant.zones[0];
-        return { ...normalizePlant(plant), main_zone: allZones.find(z => z.id === zoneId) ?? null };
-    });
-    response.render('collectie.liquid', { plants: filtered, title: 'In Bloei', zone_type: 'collectie', current_path: request.path });
-});
-
-app.get('/collectie/not_in_bloom', async (request, response) => {
-    const userId = getActiveUserId(request);
-    const collected = await getCollectedPlants(userId);
-    const filtered = collected.filter(p => !p.zones || p.zones.length === 0).map(p => normalizePlant(p));
-    response.render('collectie.liquid', { plants: filtered, title: 'Niet in Bloei', zone_type: 'collectie', current_path: request.path });
-});
-
-app.get('/collectie/:plant_slug', async (request, response) => {
-    const data = await fetchData(`frankendael_plants?filter[slug][_eq]=${request.params.plant_slug}&fields=*.*`);
-    if (!data.length) return response.status(404).send('Plant not found');
-    response.render('plant-detail.liquid', { plant: normalizePlant(data[0]), zone_type: 'collectie', current_path: request.path });
-});
-
-// Account page
-app.get('/account', async (req, res) => {
-    try {
-        // Fetch all possible memojis for the selection grid
-        const availableMemojis = await fetchData('frankendael_memoji') || [];
-        
-        // We use the 'user' already fetched by our middleware
-        const user = res.locals.user;
-
-        // Map the grid of memojis for the user to pick from
-        const memojis = availableMemojis.map(m => ({
-            ...m,
-            imageUrl: assetUrl(m.memoji),
-            // Add a check to see if this is the currently selected one
-            selected: m.id === user.memoji
-        }));
-
-        res.render('account.liquid', {
-            // total_plants is calculated from the Set size in middleware
-            total_plants: res.locals.collectedIds.size,
-            memojis,
-            current_path: req.path,
-            // user and userMemoji are already in res.locals from middleware!
-        });
-    } catch (error) {
-        console.error('Account Route Error:', error);
-        res.status(500).send('Account error');
-    }
-});
-
-app.patch('/account/set-memoji', async (req, res) => {
-    const { memojiId } = req.body; 
-    try {
-        const response = await fetch(`${API_BASE}/frankendael_users/${res.locals.userId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ memoji: Number(memojiId) }),
-        });
-
-        if (response.ok) {
-            // PROGRESSIVE ENHANCEMENT CHECK:
-            // If the request wants JSON (from fetch), send JSON.
-            // If it's a standard form (browser navigation), redirect.
-            if (req.xhr || req.headers.accept.indexOf('json') > -1) {
-                return res.status(200).json({ success: true });
-            } else {
-                return res.redirect('/account');
-            }
-        }
-        res.status(response.status).send('Update failed');
-    } catch (error) {
-        res.status(500).send('Server Error');
-    }
-});
-// Update accent color
-app.patch('/account/set-accent', async (req, res) => {
-    const { accentColor } = req.body; 
-    console.log('[accent] PATCH /account/set-accent', {
-        userId: res.locals.userId,
-        accentColor,
-        contentType: req.headers['content-type'],
-        accept: req.headers.accept
-    });
-    try {
-        const response = await fetch(`${API_BASE}/frankendael_users/${res.locals.userId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accent_color: accentColor }),
-        });
-        let directusBody = null;
-        try { directusBody = await response.clone().json(); } catch { directusBody = null; }
-
-        console.log('[accent] directus response', {
-            ok: response.ok,
-            status: response.status,
-            body: directusBody
-        });
-
-        if (response.ok) return res.status(200).json({ success: true, userId: res.locals.userId, accentColor });
-        res.status(response.status).json({ error: 'Update failed', userId: res.locals.userId, accentColor, directusBody });
-    } catch (error) {
-        console.error('[accent] server error', error);
-        res.status(500).json({ error: 'Server connection failed', userId: res.locals.userId, accentColor });
-    }
-});
-
-// Auth & Other
-app.get('/nieuws', async (req, res) => {
-    const newsData = await fetchData('frankendael_news') || [];
-    res.render('nieuws.liquid', {
-        news: newsData.map(n => ({ ...n, image: assetUrl(n.image) })),
-        zone_type: 'news',
-        current_path: req.path,
-    });
-});
-
-app.get('/nieuws/:slug', async (request, response) => {
-    const data = await fetchData(`frankendael_news?filter[slug][_eq]=${request.params.slug}`);
-    response.render('news-detail.liquid', { newsItem: { ...data[0], image: assetUrl(data[0].image) }, zone_type: 'news', current_path: request.path });
-});
-
-app.get('/login', (_req, res) => res.render('login.liquid'));
-app.get('/welcome', (req, res) => res.render('welcome.liquid', { current_path: req.path }));
-app.get('/logout', (_req, res) => { res.clearCookie('userId'); res.redirect('/login'); });
-
-// Save collected plant
-app.post('/veldverkenner/:zone_slug/:item_slug', async (req, res) => {
-    const { plant_id } = req.body;
-    try {
-        await fetch(`${API_BASE}/frankendael_users_plants`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                frankendael_users_id: res.locals.userId,
-                frankendael_plants_id: parseInt(plant_id, 10),
-            }),
-        });
-        res.redirect(`/veldverkenner/${req.params.zone_slug}`);
-    } catch (error) {
-        res.status(500).send('Save error');
-    }
-});
-
-// Login POST
-app.post('/login', async (req, res) => {
-    const { username } = req.body;
-    console.log('[login] POST /login', { username, bodyKeys: Object.keys(req.body) });
-    try {
-        const allUsers = await fetchData('frankendael_users') || [];
-        console.log('[login] fetched users count:', allUsers.length);
-        console.log('[login] available usernames:', allUsers.map(u => u.name));
-        
-        const foundUser = allUsers.find(u => u.name?.toLowerCase() === username?.toLowerCase());
-        console.log('[login] foundUser:', foundUser?.id, foundUser?.name);
-        
-        if (foundUser) {
-            res.cookie('userId', foundUser.id, { maxAge: 2_592_000_000, httpOnly: true });
-            console.log('[login] cookie set, redirecting');
-            res.redirect('/');
-        } else {
-            console.log('[login] user not found, sending 401');
-            res.status(401).send('Gebruiker niet gevonden');
-        }
-    } catch (error) {
-        console.error('[login] error:', error);
-        res.status(503).send('Inloggen mislukt');
-    }
-});
-
-app.listen(8000, () => console.log('🚀 Server started: http://localhost:8000'));
-
