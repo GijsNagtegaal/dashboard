@@ -1,0 +1,32 @@
+/* New feature, this makes transitioning custom properties possible */
+
+@property --accent-header {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: black;
+}
+
+@property --background-header {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: transparent;
+}
+
+@keyframes shrink-header {
+    from {
+        --accent-header: light-dark(#1a1a1a, #F7F7F7);
+        --background-header: var(--light-background);
+        height: 6.25rem;
+        background-color: var(--background-header);
+        backdrop-filter: blur(0px);
+    }
+    
+    to {
+        --accent-header: light-dark(#F7F7F7, #F7F7F7);
+        --background-header: rgba(0, 0, 0, 0.899); 
+        height: 4.75rem;
+        background-color: var(--background-header);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+    }
+}

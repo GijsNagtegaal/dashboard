@@ -190,3 +190,45 @@ header.topnav {
         }
     }
 }
+
+[popover]#mobile-menu {
+    width: 100vw;
+    height: 90dvh;
+    position: absolute;
+    top: 100%;
+    z-index: 3;
+     /* vars so i can reuse them */
+    --speed: 0.3s;
+    --easing: ease-out;
+    --opacity-start: 0;
+    
+    border: none;
+    opacity: var(--opacity-start);
+    background-color: var(--light-background);
+    transform: translateY(-100%);
+    transition: 
+        opacity var(--speed) var(--easing), 
+        transform var(--speed) var(--easing), 
+        display var(--speed) var(--easing) allow-discrete, 
+        overlay var(--speed) var(--easing) allow-discrete;
+
+    &:popover-open {
+        opacity: 1;
+        transform: translateY(0);
+
+        @starting-style {
+            opacity: var(--opacity-start);
+            transform: translateY(-100%);
+        }
+    }
+
+    nav {
+        display: flex;
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    a {
+        transition: color 0.5s ease;
+    }
+}
