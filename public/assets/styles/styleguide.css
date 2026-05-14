@@ -30,6 +30,7 @@ body {
     /* --------- font sizes --------- */
     --paragraph: clamp(1.1rem, 2vw, 1.3rem);
 	--heading-small: clamp(1.2rem, 2vw, 1rem);
+    --heading-smalmed: clamp(1.3rem, 2.2vw, 1.5rem);
 	--heading-medium: clamp(1.4rem, 2.7vw, 2.2rem);
 	--heading-big: clamp(1.6rem, 3vw, 2.7rem);
 
@@ -50,6 +51,8 @@ body {
     --accent-card: light-dark(#2C3E50, #43A7FF);
     --accent-button: light-dark(#43A7FF, #2C3E50);
     --accent-header: light-dark(#1a1a1a, #F7F7F7);
+
+    --accent-orders: rgba(88, 188, 68, 0.65);
 
     /* --------- borders --------- */
     --border-image: 1rem;

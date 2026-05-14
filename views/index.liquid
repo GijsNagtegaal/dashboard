@@ -7,8 +7,28 @@
             <article class="commerce">
                     <h2>{{ commerce.totalOrders }} <em> Bestellingen </em></h2>
                     <p>Je hebt al <em>{% if commerce.currency == 'EUR' %}€{% else %}{{ commerce.currency }},-{% endif %} {{ commerce.totalValue | floor }}</em> verdient afgelopen <em>7 dagen</em></p>
-
-                    <a href="/webshops">Bekijk alle data</a>
+                    <div class="shopify-summ">
+                        {% render 'partials/picture.liquid',
+                            imagesrc:"/assets/images/shopify",
+                            width: "40",
+                            height: "40",
+                            alt: "Shopify logo",
+                            class: "",
+                        %}
+                        <p>Shopify</p>
+                        <a href="/webshops/shopify">{{ commerce.shopify.orderCount }} Bestellingen</a>
+                    </div>
+                    <div class="mirakl-summ">
+                        {% render 'partials/picture.liquid',
+                            imagesrc:"/assets/images/mirakl",
+                            width: "40",
+                            height: "40",
+                            alt: "Mirakl logo",
+                            class: "",
+                        %}
+                        <p>Shopify</p>
+                        <a href="/webshops/mirakl">{{ commerce.mirakl.orderCount }} Bestellingen</a>
+                    </div>
             </article>
         {% endif %}
 
