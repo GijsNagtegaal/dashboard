@@ -1,0 +1,131 @@
+@font-face {
+    font-family: baloo;
+    src: url(/assets/fonts/baloo2.woff2);
+    font-display: swap;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    line-height: 1.2;
+    box-sizing: border-box;
+    list-style: none;
+}
+
+img, video {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+}
+
+:root:has(:popover-open) {
+    overflow: hidden;
+}
+
+body {
+
+    /* color-scheme: light dark; */
+    transition: background-color, color, .3s linear;
+
+    /* --------- font sizes --------- */
+    --paragraph: clamp(1.1rem, 2vw, 1.3rem);
+	--heading-small: clamp(1.2rem, 2vw, 1rem);
+	--heading-medium: clamp(1.4rem, 2.7vw, 2.2rem);
+	--heading-big: clamp(1.6rem, 3vw, 2.7rem);
+
+    /* --------- colors --------- */
+
+    /* main colors */
+    --light-background: light-dark(#F7F7F7, hsl(0, 0%, 12%));
+    --medium-background: light-dark(#e6e6e6, #d6d6d6);
+    --dark-background: light-dark(hsl(0, 0%, 12%), #F7F7F7);
+
+    --light-text: light-dark(#F7F7F7, #1a1a1a);
+    --dark-text: light-dark(#1a1a1a, #F7F7F7);
+    --body-background-green: #fe8b5038;
+
+    /* accent colors */
+    --accent: light-dark(#2C3E50, #43A7FF);
+    --accent-darker: light-dark(#43A7FF, #2C3E50);
+    --accent-card: light-dark(#2C3E50, #43A7FF);
+    --accent-button: light-dark(#43A7FF, #2C3E50);
+    --accent-header: light-dark(#1a1a1a, #F7F7F7);
+
+    /* --------- borders --------- */
+    --border-image: 1rem;
+    --border-popover: 1rem;
+    --border-card: .8rem;
+    --border-badge: 2rem;
+    --border-button: 1.5rem;
+    --border-round: 100%;
+
+    /* exclusions for light dark */
+    --always-black: hsl(0, 0%, 12%);
+    --always-light: #ffffff;
+
+    background-color: var(--light-background);
+}
+
+main {
+    margin: 1rem;
+
+    @media (min-width: 800px) {
+        margin: 2rem;
+    }
+
+    @media (min-width: 1200px) {
+        margin: 4rem;
+    }
+}
+
+h1, h2, h3, h4, h5, h6, em, span {
+    font-family: baloo;
+    font-weight: 600;
+    font-size: var(--heading-big);
+    color: var(--dark-text);
+}
+
+p,a, button, figcaption {
+    font-family: baloo;
+    font-weight: 600;
+    font-size: var(--paragraph);
+}
+
+h5, h6 {
+    font-size: var(--heading-small);
+}
+
+em {
+    background: linear-gradient(90deg, var(--always-light) 14%, #00E1FF 83%, #00E1FF 89%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-style: normal;
+}
+
+img.techstack {
+    width: 4rem;
+    height: 4rem;
+    padding: .5rem;
+    background-color: var(--dark-background);
+    border-radius: var(--border-round);
+}
+
+a, button {
+    text-decoration: none;
+
+    &.primary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 12.5rem;
+        width: 100%;
+        max-width: 25rem;
+        margin-block: 1rem;
+        gap: 1rem;
+        padding-block: 1rem;
+        border-radius: var(--border-button);
+        background-color: var(--accent);
+        color: var(--always-light);
+    }
+}

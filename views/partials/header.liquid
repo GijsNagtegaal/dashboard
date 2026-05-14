@@ -1,0 +1,47 @@
+<header class="topnav">
+    <!-- < 600px nav -->
+    <nav class="mobile-nav">
+        <a class="logo" href="/">
+            <svg title="logo" class="logo" width="279" height="279" viewBox="0 0 279 279" fill="none" >
+                <path d="M0 127.75H277.5L277.75 128.75L277.5 236.5L277.25 236.75H152.5L140.75 236.25L134.25 235.5L127 234L118 231.5L113.25 229.75L101.25 224.75L96.25 222L93.5 220L90.5 217.5L86.25 214.5L83.5 212.5L81 209.75L79 207.25L75.5 203.5L73.5 201.25L71 197.25L69 193.25L67 190L65 185.75L62 178.5L62.25 177.5H99.75L108.75 177.75L110.75 180.75L113.25 183.25L115.25 186.25L118.5 189.25L121.75 191.5L126 193.75L128.75 195.25L133 197.25L138 199L142.75 200.25L149.5 201.5L157.5 202.25L165 202.5H234.75L235 162.5H21.25L18.75 159.25L17 156.5L15 152.5L13 149.25L10.75 146L7 140L5.25 137.25L2.25 131.75L0.5 129L0 128.5V127.75Z" fill="var(--accent-header)"/>
+                <path d="M267 43.5L267.25 44L264.75 48.25L262.25 52L258.25 59.25L255.25 65L251.5 71.25L248.5 76L247.25 78L246 78.5H163L155.75 79L148.25 80L135.25 82.75L131 84.25L126.75 86.25L121.5 89.75L118.5 92L115.25 94.5L114.25 95.75L111.25 99.75L107.25 105.75L105.5 109.5L104.25 112.75L103.75 113.25H59.5L59.25 112.75L61 106L63.75 98.25L65.5 94.25L68.5 88.75L71.5 82.75L73.5 80.5L75.5 77.75L78.5 74.25L80.75 71.75H81.25L81.75 70.75H82.25L82.5 70L84.5 68.25L87 66L91.25 62.75L94.25 60.5L98.25 58.5L103.25 55.75L107.25 53.75L115.75 50.25L118.75 49.5L123.75 48.5L129.75 47L139.25 45.25L147 44.25L156 43.75L267 43.5Z" fill="var(--accent-header)"/>
+            </svg>
+        </a>
+        <button class="hamburger" popovertarget="mobile-menu">
+            <svg viewBox="0 0 32 32">
+                <path class="line line-top-bottom" d="M27 10 13 10C10.8 10 9 8.2 9 6 9 3.5 10.8 2 13 2 15.2 2 17 3.8 17 6L17 26C17 28.2 18.8 30 21 30 23.2 30 25 28.2 25 26 25 23.8 23.2 22 21 22L7 22"></path>
+                <path class="line" d="M7 16 27 16"></path>
+            </svg>
+            Menu
+        </button>
+        <nav class="top-mobile-nav" id="mobile-menu" popover="auto">
+                <nav class="hamburger-menu">
+                    <a href="/" class="{% if currentPath == '/' %}active{% endif %}">Home</a>
+                    <a href="/webshops" class="{% if currentPath == '/webshops' %}active{% endif %}">Webshops</a>
+                    <a href="/weather" class="{% if currentPath == '/weather' %}active{% endif %}">Weather</a>
+                    <a href="/home-assistant" class="{% if currentPath == '/home-assistant' %}active{% endif %}">home assistant</a>
+                </nav>
+            <footer>
+
+            </footer>
+        </nav>
+    </nav>
+
+    <!-- > 600px nav -->
+    <nav class="desktop-nav">
+        <a href="/">
+            <svg title="logo" class="logo" width="279" height="279" viewBox="0 0 279 279" fill="none" >
+                <path d="M0 127.75H277.5L277.75 128.75L277.5 236.5L277.25 236.75H152.5L140.75 236.25L134.25 235.5L127 234L118 231.5L113.25 229.75L101.25 224.75L96.25 222L93.5 220L90.5 217.5L86.25 214.5L83.5 212.5L81 209.75L79 207.25L75.5 203.5L73.5 201.25L71 197.25L69 193.25L67 190L65 185.75L62 178.5L62.25 177.5H99.75L108.75 177.75L110.75 180.75L113.25 183.25L115.25 186.25L118.5 189.25L121.75 191.5L126 193.75L128.75 195.25L133 197.25L138 199L142.75 200.25L149.5 201.5L157.5 202.25L165 202.5H234.75L235 162.5H21.25L18.75 159.25L17 156.5L15 152.5L13 149.25L10.75 146L7 140L5.25 137.25L2.25 131.75L0.5 129L0 128.5V127.75Z" fill="var(--accent-header)"/>
+                <path d="M267 43.5L267.25 44L264.75 48.25L262.25 52L258.25 59.25L255.25 65L251.5 71.25L248.5 76L247.25 78L246 78.5H163L155.75 79L148.25 80L135.25 82.75L131 84.25L126.75 86.25L121.5 89.75L118.5 92L115.25 94.5L114.25 95.75L111.25 99.75L107.25 105.75L105.5 109.5L104.25 112.75L103.75 113.25H59.5L59.25 112.75L61 106L63.75 98.25L65.5 94.25L68.5 88.75L71.5 82.75L73.5 80.5L75.5 77.75L78.5 74.25L80.75 71.75H81.25L81.75 70.75H82.25L82.5 70L84.5 68.25L87 66L91.25 62.75L94.25 60.5L98.25 58.5L103.25 55.75L107.25 53.75L115.75 50.25L118.75 49.5L123.75 48.5L129.75 47L139.25 45.25L147 44.25L156 43.75L267 43.5Z" fill="var(--accent-header)"/>
+            </svg>
+        </a>
+
+        <nav class="desktop-menu">
+            <a href="/" class="{% if currentPath == '/' %}active{% endif %}">Home</a>
+            <a href="/webshops" class="{% if currentPath == '/webshops' %}active{% endif %}">Webshops</a>
+            <a href="/weather" class="{% if currentPath == '/weather' %}active{% endif %}">Weather</a>
+            <a href="/home-assistant" class="{% if currentPath == '/home-assistant' %}active{% endif %}">Home assistant</a>
+        </nav>
+
+    </nav>
+</header>

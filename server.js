@@ -13,7 +13,7 @@ import shopifyService from './services/shopify.js';
 import miraklService from './services/mirakl.js';
 import weatherService from './services/weather.js';
 import githubService from './services/github.js';
-import bambuService from './services/bambulab.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +28,7 @@ app.use(express.json());
 app.use(methodOverride('_method'));
 app.use(express.static('public'));
 app.use('/gsap', express.static(path.join(__dirname, 'node_modules/gsap/dist/')));
+
 
 // --- View Engine ---
 app.engine('liquid', engine.express());
@@ -63,13 +64,12 @@ const ensureValidToken = async () => {
 // --- Routes ---
 app.get('/', async (req, res) => {
     try {
-        const [spotify, shopify, mirakl, weather, github, bambu] = await Promise.all([
+        const [spotify, shopify, mirakl, weather, github,] = await Promise.all([
             spotifyService.getCurrentlyPlaying().catch(() => null),
             shopifyService.getShopifyOrders().catch(() => null),
             miraklService.getMiraklOrders().catch(() => null),
             weatherService.getWeather().catch(() => null),
             githubService.getGitHubStats().catch(() => null),
-            bambuService.getPrinterStatus() 
         ]);
 
         const commerce = {
@@ -80,7 +80,7 @@ app.get('/', async (req, res) => {
             mirakl: mirakl ?? { orderCount: 0, totalValue: 0 },
         };
 
-        res.render('index.liquid', { spotify, commerce, weather, github, bambu, now: new Date() });
+        res.render('index.liquid', { spotify, commerce, weather, github, now: new Date() });
     } catch (error) {
         console.error('Dashboard Error:', error);
         res.status(500).send('Dashboard failed to load');

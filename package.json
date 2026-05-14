@@ -4,7 +4,7 @@
     "axios": "^1.16.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "liquidjs": "^10.25.7",
     "method-override": "^3.0.0",
